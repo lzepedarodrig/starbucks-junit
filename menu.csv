@@ -1,0 +1,55 @@
+Drink Name,Drink Type,Size,Price
+Caffe Americano,Coffee,Tall,2.95
+Caffe Americano,Coffee,Grande,3.65
+Caffe Americano,Coffee,Venti,3.95
+Caffe Americano,Coffee,Tall,3.65
+Caffe Americano,Coffee,Grande,4.25
+Caffe Americano,Coffee,Venti,4.65
+Cappuccino,Coffee,Tall,3.65
+Cappuccino,Coffee,Grande,4.25
+Cappuccino,Coffee,Venti,4.65
+Flat White,Coffee,Tall,3.95
+Flat White,Coffee,Grande,4.45
+Flat White,Coffee,Venti,4.95
+Espresso Macchiato,Coffee,Tall,2.75
+Espresso Macchiato,Coffee,Grande,3.25
+Espresso Macchiato,Coffee,Venti,3.75
+Chai Tea Latte,Tea,Tall,3.65
+Chai Tea Latte,Tea,Grande,4.25
+Chai Tea Latte,Tea,Venti,4.65
+Matcha Green Tea Latte,Tea,Tall,3.95
+Matcha Green Tea Latte,Tea,Grande,4.45
+Matcha Green Tea Latte,Tea,Venti,4.95
+London Fog Tea Latte,Tea,Tall,3.45
+London Fog Tea Latte,Tea,Grande,3.95
+London Fog Tea Latte,Tea,Venti,4.45
+Peach Green Tea,Tea,Tall,2.95
+Peach Green Tea,Tea,Grande,3.45
+Peach Green Tea,Tea,Venti,3.95
+Strawberry Açaí Refresher,Refresher,Tall,3.75
+Strawberry Açaí Refresher,Refresher,Grande,4.25
+Strawberry Açaí Refresher,Refresher,Venti,4.75
+Mango Dragonfruit Refresher,Refresher,Tall,3.75
+Mango Dragonfruit Refresher,Refresher,Grande,4.25
+Mango Dragonfruit Refresher,Refresher,Venti,4.75
+Kiwi Starfruit Refresher,Refresher,Tall,3.75
+Kiwi Starfruit Refresher,Refresher,Grande,4.25
+Kiwi Starfruit Refresher,Refresher,Venti,4.75
+Caramel Frappuccino,Frappuccino,Tall,4.45
+Caramel Frappuccino,Frappuccino,Grande,4.95
+Caramel Frappuccino,Frappuccino,Venti,5.45
+Mocha Frappuccino,Frappuccino,Tall,4.45
+Mocha Frappuccino,Frappuccino,Grande,4.95
+Mocha Frappuccino,Frappuccino,Venti,5.45
+Java Chip Frappuccino,Frappuccino,Tall,4.75
+Java Chip Frappuccino,Frappuccino,Grande,5.25
+Java Chip Frappuccino,Frappuccino,Venti,5.75
+Pumpkin Spice Latte,Seasonal,Tall,4.25
+Pumpkin Spice Latte,Seasonal,Grande,4.95
+Pumpkin Spice Latte,Seasonal,Venti,5.45
+Peppermint Mocha,Seasonal,Tall,4.25
+Peppermint Mocha,Seasonal,Grande,4.95
+Peppermint Mocha,Seasonal,Venti,5.45
+Chestnut Praline Latte,Seasonal,Tall,4.25
+Chestnut Praline Latte,Seasonal,Grande,4.95
+Chestnut Praline Latte,Seasonal,Venti,5.45
