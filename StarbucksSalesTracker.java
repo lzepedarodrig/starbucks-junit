@@ -96,6 +96,18 @@ public class StarbucksSalesTracker{
 }*/
 // Code refined with AI based on our own code as commented above. 
 
+// Merged & simplified StarbucksSalesTracker
+// Combines both teammates' features: menu loading, browse/search, cart-based ordering,
+// add-ons (vanilla syrup, extra shot), receipt saving, sales summary, and promotions.
+// Notes:
+//  - Type extends Drink (provided). We rely on getters like getName(), getSize(), getPrice(), getType_name().
+//  - CSV expected columns: Drink Name, Drink Type, Size, Price (header required).
+//  - Matching on drink/type is case-insensitive.
+//  - Promotions (applied to base drink prices only, not add-ons):
+//      * Bulk: 10% off if you buy 4+ drinks in one checkout
+//      * Happy Hour: 20% off TEA drinks between 2:00 PM and 4:00 PM (local system time)
+//  - Receipts are appended to "receipt.txt" in the working directory.
+
 import java.io.*;
 import java.time.LocalDate;
 import java.time.LocalTime;
