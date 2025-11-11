@@ -1,0 +1,215 @@
+@startuml Starbucks Sales Tracker Class Diagram
+
+!define ABSTRACT_CLASS class
+!define INTERFACE interface
+
+' Interfaces
+INTERFACE Pricable {
+  + calculatePrice(): double
+  + getDisplayLabel(): String
+}
+
+INTERFACE Promotion {
+  + calculateDiscount(items: List<CartItem>, baseTotal: double, addonsTotal: double): double
+  + getPromotionName(): String
+  + isApplicable(items: List<CartItem>): boolean
+}
+
+' Abstract Base Class
+abstract class Drink {
+  - name: String
+  - size: String
+  - price: double
+  + getName(): String
+  + getSize(): String
+  + getPrice(): double
+  + {abstract} getCategoryName(): String
+  + {abstract} getDisplayLabel(): String
+  + calculatePrice(): double
+}
+
+' Concrete Drink Classes
+class Coffee extends Drink {
+  + Coffee(name: String, size: String, price: double)
+  + getCategoryName(): String
+  + getDisplayLabel(): String
+}
+
+class Tea extends Drink {
+  + Tea(name: String, size: String, price: double)
+  + getCategoryName(): String
+  + getDisplayLabel(): String
+}
+
+class Refresher extends Drink {
+  + Refresher(name: String, size: String, price: double)
+  + getCategoryName(): String
+  + getDisplayLabel(): String
+}
+
+class Frappuccino extends Drink {
+  + Frappuccino(name: String, size: String, price: double)
+  + getCategoryName(): String
+  + getDisplayLabel(): String
+}
+
+class Seasonal extends Drink {
+  + Seasonal(name: String, size: String, price: double)
+  + getCategoryName(): String
+  + getDisplayLabel(): String
+}
+
+' Factory Pattern
+class DrinkFactory {
+  + {static} createDrink(name: String, size: String, price: double, typeName: String): Drink
+}
+
+' Strategy Pattern - Promotions
+class BulkOrderPromotion implements Promotion {
+  - MIN_ITEMS: int
+  - DISCOUNT_PERCENTAGE: double
+  + calculateDiscount(...): double
+  + getPromotionName(): String
+  + isApplicable(...): boolean
+}
+
+class HappyHourPromotion implements Promotion {
+  - HAPPY_HOUR_START: LocalTime
+  - HAPPY_HOUR_END: LocalTime
+  - DISCOUNT_PERCENTAGE: double
+  + calculateDiscount(...): double
+  + getPromotionName(): String
+  + isApplicable(...): boolean
+}
+
+class BuyNGetMPromotion implements Promotion {
+  - REQUIRED_QUANTITY: int
+  - menu: List<Drink>
+  + BuyNGetMPromotion(menu: List<Drink>)
+  + calculateDiscount(...): double
+  + getPromotionName(): String
+  + isApplicable(...): boolean
+}
+
+class PromotionManager {
+  - promotions: List<Promotion>
+  + PromotionManager(promotions: List<Promotion>)
+  + selectBestPromotion(items: List<CartItem>, baseTotal: double, addonsTotal: double): Promotion
+}
+
+' Cart and Order Management
+class CartItem {
+  - drink: Drink
+  - quantity: int
+  - vanillaShots: int
+  - espressoShots: int
+  + CartItem(drink: Drink, quantity: int, vanillaShots: int, espressoShots: int)
+  + getDrink(): Drink
+  + getQuantity(): int
+  + addonsCost(): double
+  + basePrice(): double
+  + getDisplayString(): String
+}
+
+class Order {
+  - items: List<CartItem>
+  - baseTotal: double
+  - addonsTotal: double
+  - discount: double
+  - promotionName: String
+  - subtotalBeforeTax: double
+  - tax: double
+  - finalTotal: double
+  - timestamp: LocalDateTime
+  + Order(...)
+  + getItems(): List<CartItem>
+  + getBaseTotal(): double
+  + getFinalTotal(): double
+  + getTax(): double
+  + ...
+}
+
+' Statistics
+class SalesStatistics {
+  - drinkCountByNameAndSize: Map<String, Integer>
+  - addonCount: Map<String, Integer>
+  - addonRevenue: Map<String, Double>
+  - categoryItemCount: Map<String, Integer>
+  - categoryRevenue: Map<String, Double>
+  - totalDiscountGiven: double
+  - ordersWithPromotions: int
+  - uniqueDrinkTypesSold: Set<String>
+  - totalDrinksSold: int
+  - totalRevenue: double
+  + recordOrder(order: Order): void
+  + getMostPopularDrink(): String
+  + getMostPopularDrinkCount(): int
+  + getTop3Addons(): List<String>
+  + getTotalAddonRevenue(): double
+  + getUnsoldDrinks(menu: List<Drink>): Set<String>
+  + ...
+}
+
+' Main Application
+class StarbucksSalesTracker {
+  - menu: List<Drink>
+  - cart: List<CartItem>
+  - statistics: SalesStatistics
+  - completedOrders: List<Order>
+  - promotionManager: PromotionManager
+  - TAX_RATE: double
+  + loadMenuFromCsv(filePath: String): void
+  + runMenu(): void
+  - showAllDrinks(): void
+  - searchByType(typeName: String): void
+  - placeOrder(scanner: Scanner): void
+  - checkoutAndSaveReceipt(scanner: Scanner): void
+  - printSalesSummary(): void
+  + main(args: String[]): void
+}
+
+' Relationships
+Drink ..|> Pricable : implements
+Coffee --|> Drink
+Tea --|> Drink
+Refresher --|> Drink
+Frappuccino --|> Drink
+Seasonal --|> Drink
+
+DrinkFactory ..> Drink : creates
+
+Promotion <|.. BulkOrderPromotion
+Promotion <|.. HappyHourPromotion
+Promotion <|.. BuyNGetMPromotion
+PromotionManager --> Promotion : uses
+
+CartItem --> Drink : contains
+Order *-- CartItem : contains
+SalesStatistics --> Order : uses
+
+StarbucksSalesTracker *-- Drink : contains (menu)
+StarbucksSalesTracker *-- CartItem : contains (cart)
+StarbucksSalesTracker *-- SalesStatistics : contains
+StarbucksSalesTracker *-- PromotionManager : contains
+StarbucksSalesTracker --> Order : creates
+BuyNGetMPromotion --> Drink : uses (menu)
+
+note right of PromotionManager
+  Strategy Pattern:
+  Selects best promotion
+  from applicable ones
+end note
+
+note right of DrinkFactory
+  Factory Pattern:
+  Creates appropriate
+  drink category class
+end note
+
+note right of SalesStatistics
+  Encapsulates all
+  sales tracking logic
+end note
+
+@enduml
+
