@@ -18,6 +18,19 @@ public class StarbucksSalesTracker {
     private final List<Order> completedOrders = new ArrayList<>();
     private PromotionManager promotionManager;
 
+    // For JUnit tests
+    public List<Drink> getMenu() {
+        return Collections.unmodifiableList(menu);
+    }
+
+    public List<Order> getCompletedOrders() {
+        return Collections.unmodifiableList(completedOrders);
+    }
+
+    public SalesStatistics getStatistics() {
+        return statistics;
+    }
+
     // ======= Initialization =======
     public StarbucksSalesTracker() {
         // Initialize promotions
@@ -47,22 +60,40 @@ public class StarbucksSalesTracker {
                 String choice = scanner.nextLine().trim();
 
                 switch (choice) {
-                    case "1" -> showAllDrinks();
+                    case "1" ->
+                        showAllDrinks();
                     case "2" -> {
                         System.out.print("Enter a drink type (e.g., Coffee, Tea, Refresher, Frappuccino): ");
                         String type = scanner.nextLine().trim();
                         searchByType(type);
                     }
-                    case "3" -> placeOrder(scanner);
-                    case "4" -> printSalesSummary();
+                    case "3" ->
+                        placeOrder(scanner);
+                    case "4" ->
+                        printSalesSummary();
                     case "5" -> {
                         System.out.println("Thank you for choosing Starbucks!");
                         return;
                     }
-                    default -> System.out.println("Invalid option.");
+                    default ->
+                        System.out.println("Invalid option.");
                 }
             }
         }
+    }
+
+    // For tests to inspect unsold drinks
+    public Set<String> getUnsoldDrinkNames() {
+        return statistics.getUnsoldDrinks(menu);
+    }
+
+// Total revenue and discounts
+    public double getTotalRevenue() {
+        return statistics.getTotalRevenue();
+    }
+
+    public double getTotalDiscountGiven() {
+        return statistics.getTotalDiscountGiven();
     }
 
     // ======= Menu browsing =======
@@ -79,8 +110,8 @@ public class StarbucksSalesTracker {
             String key = drink.getName() + "|" + drink.getSize();
             if (!seen.contains(key)) {
                 seen.add(key);
-                System.out.printf("%2d) %s | Type: %s%n", 
-                    index++, drink.getDisplayLabel(), drink.getCategoryName());
+                System.out.printf("%2d) %s | Type: %s%n",
+                        index++, drink.getDisplayLabel(), drink.getCategoryName());
             }
         }
     }
@@ -137,22 +168,22 @@ public class StarbucksSalesTracker {
             } else {
                 // Prompt for quantity
                 int quantity = promptForPositiveInt(scanner, "Quantity: ");
-                int vanilla = promptForNonNegativeInt(scanner, 
-                    "How many shots of vanilla syrup? (each $0.60): ");
-                int espresso = promptForNonNegativeInt(scanner, 
-                    "How many extra espresso shots? (each $0.50): ");
+                int vanilla = promptForNonNegativeInt(scanner,
+                        "How many shots of vanilla syrup? (each $0.60): ");
+                int espresso = promptForNonNegativeInt(scanner,
+                        "How many extra espresso shots? (each $0.50): ");
                 CartItem cartItem = new CartItem(chosen, quantity, vanilla, espresso);
                 cart.add(cartItem);
-                
+
                 // Show added item with quantity
                 if (quantity > 1) {
                     System.out.printf("Added: %dx %s (%s) — $%.2f [%s]%n",
-                        quantity, chosen.getName(), chosen.getSize(), 
-                        cartItem.basePrice(), cartItem.addonsLabel());
+                            quantity, chosen.getName(), chosen.getSize(),
+                            cartItem.basePrice(), cartItem.addonsLabel());
                 } else {
                     System.out.printf("Added: %s (%s) — $%.2f [%s]%n",
-                        chosen.getName(), chosen.getSize(), 
-                        cartItem.basePrice(), cartItem.addonsLabel());
+                            chosen.getName(), chosen.getSize(),
+                            cartItem.basePrice(), cartItem.addonsLabel());
                 }
             }
             System.out.print("Add another item? (Y/N): ");
@@ -163,7 +194,7 @@ public class StarbucksSalesTracker {
             System.out.println("(Cart was empty; nothing to checkout.)");
             return;
         }
-        
+
         checkoutAndSaveReceipt(scanner);
     }
 
@@ -204,8 +235,8 @@ public class StarbucksSalesTracker {
     private Drink findMenuItem(String name, String size) {
         for (Drink drink : menu) {
             if (drink.getName() != null && drink.getSize() != null) {
-                if (drink.getName().equalsIgnoreCase(name) && 
-                    drink.getSize().equalsIgnoreCase(size)) {
+                if (drink.getName().equalsIgnoreCase(name)
+                        && drink.getSize().equalsIgnoreCase(size)) {
                     return drink;
                 }
             }
@@ -228,7 +259,7 @@ public class StarbucksSalesTracker {
         Promotion bestPromotion = promotionManager.selectBestPromotion(cart, baseTotal, addonsTotal);
         double appliedDisc = 0.0;
         String promoLabel = "None";
-        
+
         if (bestPromotion != null) {
             appliedDisc = bestPromotion.calculateDiscount(cart, baseTotal, addonsTotal);
             promoLabel = bestPromotion.getPromotionName();
@@ -240,10 +271,10 @@ public class StarbucksSalesTracker {
         double finalTotal = finalTotalBeforeTax + tax;
 
         // Create Order object
-        Order order = new Order(new ArrayList<>(cart), baseTotal, addonsTotal, 
-            appliedDisc, promoLabel, finalTotalBeforeTax, tax, finalTotal);
+        Order order = new Order(new ArrayList<>(cart), baseTotal, addonsTotal,
+                appliedDisc, promoLabel, finalTotalBeforeTax, tax, finalTotal);
         completedOrders.add(order);
-        
+
         // Record order in statistics
         statistics.recordOrder(order);
 
@@ -251,7 +282,7 @@ public class StarbucksSalesTracker {
         System.out.println("\n===== CHECKOUT =====");
         for (CartItem ci : cart) {
             System.out.printf("- %s  base $%.2f  | add-ons [%s] $%.2f%n",
-                ci.getDisplayString(), ci.basePrice(), ci.addonsLabel(), ci.addonsCost());
+                    ci.getDisplayString(), ci.basePrice(), ci.addonsLabel(), ci.addonsCost());
         }
         System.out.printf("Drinks total:     $%.2f%n", baseTotal);
         System.out.printf("Add-ons total:    $%.2f%n", addonsTotal);
@@ -276,20 +307,20 @@ public class StarbucksSalesTracker {
         LocalDateTime now = LocalDateTime.now();
         DateTimeFormatter fileFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm");
         String fileName = "receipt_" + now.format(fileFormatter) + ".txt";
-        
+
         DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-        
+
         StringBuilder sb = new StringBuilder();
         sb.append("==== Starbucks Receipt ====\n");
         sb.append("Date: ").append(now.format(dateFormatter))
-          .append("  Time: ").append(now.format(timeFormatter)).append("\n\n");
-        
+                .append("  Time: ").append(now.format(timeFormatter)).append("\n\n");
+
         for (CartItem ci : order.getItems()) {
             sb.append(String.format("%-28s  base $%5.2f  add-ons [%s] $%4.2f%n",
-                ci.getDisplayString(), ci.basePrice(), ci.addonsLabel(), ci.addonsCost()));
+                    ci.getDisplayString(), ci.basePrice(), ci.addonsLabel(), ci.addonsCost()));
         }
-        
+
         sb.append(String.format("\nDrinks total:     $%.2f%n", order.getBaseTotal()));
         sb.append(String.format("Add-ons total:    $%.2f%n", order.getAddonsTotal()));
         sb.append(String.format("Promotion:  %s  (-$%.2f)%n", order.getPromotionName(), order.getDiscount()));
@@ -360,9 +391,9 @@ public class StarbucksSalesTracker {
         if (!categoryCounts.isEmpty()) {
             System.out.println("\nPer-Category Breakdown:");
             for (String category : categoryCounts.keySet()) {
-                System.out.printf("  - %s: %d items, $%.2f revenue%n", 
-                    category, categoryCounts.get(category), 
-                    categoryRevenues.getOrDefault(category, 0.0));
+                System.out.printf("  - %s: %d items, $%.2f revenue%n",
+                        category, categoryCounts.get(category),
+                        categoryRevenues.getOrDefault(category, 0.0));
             }
         }
     }
@@ -371,10 +402,12 @@ public class StarbucksSalesTracker {
     public void loadMenuFromCsv(String filePath) {
         menu.clear();
         Set<String> seen = new HashSet<>(); // To handle duplicates
-        
+
         try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
             String header = br.readLine();
-            if (header == null) return;
+            if (header == null) {
+                return;
+            }
 
             // Map header → index (normalized to lower-case w/o spaces)
             String[] h = header.split(",", -1);
@@ -384,9 +417,9 @@ public class StarbucksSalesTracker {
                 idx.put(key, i);
             }
 
-            Integer iName  = idx.get("drinkname");
-            Integer iType  = idx.get("drinktype");
-            Integer iSize  = idx.get("size");
+            Integer iName = idx.get("drinkname");
+            Integer iType = idx.get("drinktype");
+            Integer iSize = idx.get("size");
             Integer iPrice = idx.get("price");
 
             if (iName == null || iType == null || iSize == null || iPrice == null) {
@@ -398,7 +431,9 @@ public class StarbucksSalesTracker {
             int lineNumber = 1;
             while ((line = br.readLine()) != null) {
                 lineNumber++;
-                if (line.isBlank()) continue;
+                if (line.isBlank()) {
+                    continue;
+                }
                 String[] f = line.split(",", -1);
                 if (f.length <= Math.max(Math.max(iName, iType), Math.max(iSize, iPrice))) {
                     System.err.println("Skipping row " + lineNumber + " with missing fields: " + line);
@@ -437,27 +472,117 @@ public class StarbucksSalesTracker {
                     menu.add(drink);
                 }
             }
-            
+
             // Update BuyNGetMPromotion with menu
             List<Promotion> promotions = new ArrayList<>();
             promotions.add(new BulkOrderPromotion());
             promotions.add(new HappyHourPromotion());
             promotions.add(new BuyNGetMPromotion(menu));
             this.promotionManager = new PromotionManager(promotions);
-            
+
             System.out.println("Loaded " + menu.size() + " menu items from " + filePath);
         } catch (IOException e) {
             System.err.println("Error reading CSV file: " + e.getMessage());
         }
     }
+  // StarbucksSalesTracker.java
+public List<Drink> searchByTypeForTest(String typeName) {
+    List<Drink> result = new ArrayList<>();
+    for (Drink drink : menu) {
+        if (drink.getCategoryName().equalsIgnoreCase(typeName)) {
+            result.add(drink);
+        }
+    }
+    return result;
+}
+
 
     // ======= Main =======
     public static void main(String[] args) {
         StarbucksSalesTracker app = new StarbucksSalesTracker();
         // Load menu.csv from working dir by default
         String path = "menu.csv";
-        if (args != null && args.length > 0) path = args[0];
+        if (args != null && args.length > 0) {
+            path = args[0];
+        }
         app.loadMenuFromCsv(path);
         app.runMenu();
     }
+
+    // ======= Test-friendly ordering method =======
+public void placeOrderTest(Drink drink, int quantity, int vanillaShots, int espressoShots) {
+    if (drink == null || quantity <= 0) return;
+
+    CartItem cartItem = new CartItem(drink, quantity, vanillaShots, espressoShots);
+    cart.clear();
+    cart.add(cartItem);
+
+    // Compute totals and apply promotions exactly like checkout
+    double baseTotal = 0.0;
+    double addonsTotal = 0.0;
+
+    for (CartItem ci : cart) {
+        baseTotal += ci.basePrice();
+        addonsTotal += ci.addonsCost();
+    }
+
+    Promotion bestPromotion = promotionManager.selectBestPromotion(cart, baseTotal, addonsTotal);
+    double appliedDisc = 0.0;
+    String promoLabel = "None";
+    if (bestPromotion != null) {
+        appliedDisc = bestPromotion.calculateDiscount(cart, baseTotal, addonsTotal);
+        promoLabel = bestPromotion.getPromotionName();
+    }
+
+    double subtotal = baseTotal + addonsTotal;
+    double finalTotalBeforeTax = subtotal - appliedDisc;
+    double tax = finalTotalBeforeTax * TAX_RATE;
+    double finalTotal = finalTotalBeforeTax + tax;
+
+    Order order = new Order(new ArrayList<>(cart), baseTotal, addonsTotal,
+            appliedDisc, promoLabel, finalTotalBeforeTax, tax, finalTotal);
+
+    completedOrders.add(order);
+    statistics.recordOrder(order);
+    cart.clear();
+}
+
+public void addDrinkForTest(Drink drink) {
+    menu.add(drink);
+}
+
+public void placeOrderForTest(Drink drink, int quantity, int vanillaShots, int espressoShots) {
+    cart.clear();
+    CartItem ci = new CartItem(drink, quantity, vanillaShots, espressoShots);
+    cart.add(ci);
+
+    // Compute totals and promotions
+    double baseTotal = 0.0;
+    double addonsTotal = 0.0;
+
+    for (CartItem item : cart) {
+        baseTotal += item.basePrice();
+        addonsTotal += item.addonsCost();
+    }
+
+    Promotion bestPromotion = promotionManager.selectBestPromotion(cart, baseTotal, addonsTotal);
+    double appliedDiscount = 0.0;
+    String promoLabel = "None";
+    if (bestPromotion != null) {
+        appliedDiscount = bestPromotion.calculateDiscount(cart, baseTotal, addonsTotal);
+        promoLabel = bestPromotion.getPromotionName();
+    }
+
+    double subtotal = baseTotal + addonsTotal;
+    double totalBeforeTax = subtotal - appliedDiscount;
+    double tax = totalBeforeTax * TAX_RATE;
+    double finalTotal = totalBeforeTax + tax;
+
+    Order order = new Order(new ArrayList<>(cart), baseTotal, addonsTotal, appliedDiscount,
+            promoLabel, totalBeforeTax, tax, finalTotal);
+
+    completedOrders.add(order);
+    statistics.recordOrder(order);
+    cart.clear();
+}
 }
