@@ -44,7 +44,7 @@ A command-line application for tracking Starbucks drink sales with menu manageme
    Note: For JUnit tests, ensure JUnit is in your classpath and use:
    ```bash
    javac -cp ".:junit-4.13.2.jar:hamcrest-core-1.3.jar" *.java
-   java -cp ".:junit-4.13.2.jar:hamcrest-core-1.3.jar" org.junit.runner.JUnitCore TestStarbucks
+   java -cp ".:junit-4.13.2.jar:hamcrest-core-1.3.jar" org.junit.runner.JUnitCore StarbucksTest
    ```
 
 ## Project Map
