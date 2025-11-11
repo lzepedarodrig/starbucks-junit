@@ -1,22 +1,38 @@
-// Drink is the abstract class (parent class) for Type
-public abstract class Drink {
+/**
+ * Abstract base class for all drink types.
+ * Implements Pricable interface and provides common drink attributes.
+ * Part 6.2 Requirement - Interface Implementation
+ */
+public abstract class Drink implements Pricable {
     // Private Attributes - Encapsulation
     private String name;
     private String size;
     private double price;
-    private double compute_price;
 
     // Default Constructor
-    public Drink(){
+    public Drink() {
         
     }
 
     // Concrete Constructor
-    public Drink(String name, String size, double price){
+    public Drink(String name, String size, double price) {
         this.name = name;
         this.size = size;
         this.price = price;
     }
+
+    // Abstract methods - must be implemented by subclasses
+    /**
+     * Returns the category name of this drink (e.g., "Coffee", "Tea", "Refresher").
+     * @return the category name
+     */
+    public abstract String getCategoryName();
+    
+    /**
+     * Returns a formatted display label for this drink.
+     * @return formatted string like "Caffé Latte (Grande) - $4.25"
+     */
+    public abstract String getDisplayLabel();
 
     // Methods
     public String getName() {
@@ -43,12 +59,12 @@ public abstract class Drink {
         this.price = price;
     }
 
-    public double getCompute_price() {
-        return compute_price;
+    /**
+     * Implements Pricable interface - returns the price of this drink.
+     * @return the price
+     */
+    @Override
+    public double calculatePrice() {
+        return price;
     }
-
-    public void setCompute_price(double compute_price) {
-        this.compute_price = compute_price;
-    }
-
 }

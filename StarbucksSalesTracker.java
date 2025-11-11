@@ -1,65 +1,31 @@
-// Merged & simplified StarbucksSalesTracker
-// Combines both teammates' features: menu loading, browse/search, cart-based ordering,
-// add-ons (vanilla syrup, extra shot), receipt saving, sales summary, and promotions.
-// Notes:
-//  - Type extends Drink (provided). We rely on getters like getName(), getSize(), getPrice(), getType_name().
-//  - CSV expected columns: Drink Name, Drink Type, Size, Price (header required).
-//  - Matching on drink/type is case-insensitive.
-//  - Promotions (applied to base drink prices only, not add-ons):
-//      * Bulk: 10% off if you buy 4+ drinks in one checkout
-//      * Happy Hour: 20% off TEA drinks between 2:00 PM and 4:00 PM (local system time)
-//  - Receipts are appended to "receipt.txt" in the working directory.
+// Starbucks Sales Tracker - Complete Implementation
+// Implements all requirements: OOP principles, interfaces, design patterns, and all features.
 
 import java.io.*;
-import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 public class StarbucksSalesTracker {
 
     // ======= Config =======
-    private static final double ADDON_VANILLA_SYRUP = 0.60;  // per shot
-    private static final double ADDON_EXTRA_SHOT     = 0.50;  // per shot
-    private static final LocalTime HAPPY_HOUR_START  = LocalTime.of(14, 0); // 2:00 PM
-    private static final LocalTime HAPPY_HOUR_END    = LocalTime.of(16, 0); // 4:00 PM
+    private static final double TAX_RATE = 0.0825; // 8.25% tax rate
 
     // ======= State =======
-    private final List<Type> menu = new ArrayList<>();
+    private final List<Drink> menu = new ArrayList<>();
     private final List<CartItem> cart = new ArrayList<>();
-    private final Map<String, Integer> itemCountByName = new HashMap<>();
-    private double totalSales = 0.0;
+    private final SalesStatistics statistics = new SalesStatistics();
+    private final List<Order> completedOrders = new ArrayList<>();
+    private PromotionManager promotionManager;
 
-    // Inner helper to track per-item add-ons
-    private static class CartItem {
-        Type drink;
-        int vanillaShots; // count
-        int espressoShots; // count
-
-        CartItem(Type drink, int vanillaShots, int espressoShots) {
-            this.drink = drink;
-            this.vanillaShots = Math.max(0, vanillaShots);
-            this.espressoShots = Math.max(0, espressoShots);
-        }
-
-        double addonsCost() {
-            return (vanillaShots * ADDON_VANILLA_SYRUP) + (espressoShots * ADDON_EXTRA_SHOT);
-        }
-
-        double basePrice() {
-            return drink.getPrice();
-        }
-
-        double lineSubtotalBeforeDiscounts() {
-            return basePrice() + addonsCost();
-        }
-
-        String addonsLabel() {
-            List<String> parts = new ArrayList<>();
-            if (vanillaShots > 0) parts.add(vanillaShots + "x vanilla");
-            if (espressoShots > 0) parts.add(espressoShots + "x extra shot");
-            return parts.isEmpty() ? "no add-ons" : String.join(", ", parts);
-        }
+    // ======= Initialization =======
+    public StarbucksSalesTracker() {
+        // Initialize promotions
+        List<Promotion> promotions = new ArrayList<>();
+        promotions.add(new BulkOrderPromotion());
+        promotions.add(new HappyHourPromotion());
+        // BuyNGetMPromotion will be initialized after menu is loaded
+        this.promotionManager = new PromotionManager(promotions);
     }
 
     // ======= UI =======
@@ -106,10 +72,16 @@ public class StarbucksSalesTracker {
             return;
         }
         System.out.println("\n=== All Available Drinks ===");
-        for (int i = 0; i < menu.size(); i++) {
-            Type t = menu.get(i);
-            System.out.printf("%2d) %-28s | %-6s | $%5.2f | Type: %s%n",
-                    i + 1, t.getName(), t.getSize(), t.getPrice(), t.getType_name());
+        // Use Set to avoid duplicates based on name + size
+        Set<String> seen = new HashSet<>();
+        int index = 1;
+        for (Drink drink : menu) {
+            String key = drink.getName() + "|" + drink.getSize();
+            if (!seen.contains(key)) {
+                seen.add(key);
+                System.out.printf("%2d) %s | Type: %s%n", 
+                    index++, drink.getDisplayLabel(), drink.getCategoryName());
+            }
         }
     }
 
@@ -120,18 +92,28 @@ public class StarbucksSalesTracker {
         }
         System.out.println("\n=== Results for type: " + typeName + " ===");
         boolean any = false;
-        for (Type t : menu) {
-            if (t.getType_name() != null && t.getType_name().equalsIgnoreCase(typeName)) {
-                System.out.printf("- %-28s | %-6s | $%5.2f%n", t.getName(), t.getSize(), t.getPrice());
-                any = true;
+        Set<String> seen = new HashSet<>();
+        for (Drink drink : menu) {
+            // Use polymorphism - getCategoryName() instead of string comparison
+            if (drink.getCategoryName().equalsIgnoreCase(typeName)) {
+                String key = drink.getName() + "|" + drink.getSize();
+                if (!seen.contains(key)) {
+                    seen.add(key);
+                    System.out.printf("- %s%n", drink.getDisplayLabel());
+                    any = true;
+                }
             }
         }
         if (!any) {
             System.out.println("(No drinks found for that type)");
-            // Small hint: show distinct types to guide user
+            // Show distinct types to guide user
             Set<String> types = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
-            for (Type t : menu) if (t.getType_name() != null) types.add(t.getType_name());
-            if (!types.isEmpty()) System.out.println("Try one of: " + String.join(", ", types));
+            for (Drink drink : menu) {
+                types.add(drink.getCategoryName());
+            }
+            if (!types.isEmpty()) {
+                System.out.println("Try one of: " + String.join(", ", types));
+            }
         }
     }
 
@@ -149,25 +131,40 @@ public class StarbucksSalesTracker {
             System.out.print("Size (Tall, Grande, Venti): ");
             String size = scanner.nextLine().trim();
 
-            Type chosen = findMenuItem(drinkName, size);
+            Drink chosen = findMenuItem(drinkName, size);
             if (chosen == null) {
                 System.out.println("Not found. Tip: use option 1 to list the exact names and sizes.");
             } else {
-                int vanilla = promptForNonNegativeInt(scanner, "How many shots of vanilla syrup? (each $%.2f): ".formatted(ADDON_VANILLA_SYRUP));
-                int espresso = promptForNonNegativeInt(scanner, "How many extra espresso shots? (each $%.2f): ".formatted(ADDON_EXTRA_SHOT));
-                cart.add(new CartItem(chosen, vanilla, espresso));
-                System.out.printf("Added: %s (%s) — $%.2f [%s]%n",
-                        chosen.getName(), chosen.getSize(), chosen.getPrice(), cart.get(cart.size()-1).addonsLabel());
+                // Prompt for quantity
+                int quantity = promptForPositiveInt(scanner, "Quantity: ");
+                int vanilla = promptForNonNegativeInt(scanner, 
+                    "How many shots of vanilla syrup? (each $0.60): ");
+                int espresso = promptForNonNegativeInt(scanner, 
+                    "How many extra espresso shots? (each $0.50): ");
+                CartItem cartItem = new CartItem(chosen, quantity, vanilla, espresso);
+                cart.add(cartItem);
+                
+                // Show added item with quantity
+                if (quantity > 1) {
+                    System.out.printf("Added: %dx %s (%s) — $%.2f [%s]%n",
+                        quantity, chosen.getName(), chosen.getSize(), 
+                        cartItem.basePrice(), cartItem.addonsLabel());
+                } else {
+                    System.out.printf("Added: %s (%s) — $%.2f [%s]%n",
+                        chosen.getName(), chosen.getSize(), 
+                        cartItem.basePrice(), cartItem.addonsLabel());
+                }
             }
             System.out.print("Add another item? (Y/N): ");
             cont = scanner.nextLine().trim();
         }
 
-        if (!cart.isEmpty()) {
-            checkoutAndSaveReceipt(scanner);
-        } else {
+        if (cart.isEmpty()) {
             System.out.println("(Cart was empty; nothing to checkout.)");
+            return;
         }
+        
+        checkoutAndSaveReceipt(scanner);
     }
 
     private int promptForNonNegativeInt(Scanner scanner, String prompt) {
@@ -187,11 +184,29 @@ public class StarbucksSalesTracker {
         }
     }
 
-    private Type findMenuItem(String name, String size) {
-        for (Type t : menu) {
-            if (t.getName() != null && t.getSize() != null) {
-                if (t.getName().equalsIgnoreCase(name) && t.getSize().equalsIgnoreCase(size)) {
-                    return t;
+    private int promptForPositiveInt(Scanner scanner, String prompt) {
+        while (true) {
+            System.out.print(prompt);
+            String s = scanner.nextLine().trim();
+            try {
+                int v = Integer.parseInt(s);
+                if (v <= 0) {
+                    System.out.println("Please enter a positive integer (1 or more).");
+                } else {
+                    return v;
+                }
+            } catch (NumberFormatException nfe) {
+                System.out.println("Please enter a valid integer.");
+            }
+        }
+    }
+
+    private Drink findMenuItem(String name, String size) {
+        for (Drink drink : menu) {
+            if (drink.getName() != null && drink.getSize() != null) {
+                if (drink.getName().equalsIgnoreCase(name) && 
+                    drink.getSize().equalsIgnoreCase(size)) {
+                    return drink;
                 }
             }
         }
@@ -199,62 +214,50 @@ public class StarbucksSalesTracker {
     }
 
     // ======= Promotions & Checkout =======
-    private double calculateBulkDiscount(int itemCount, double baseTotal) {
-        // 10% off if 4 or more drinks (excludes add-ons)
-        return itemCount >= 4 ? baseTotal * 0.10 : 0.0;
-    }
-
-    private double calculateHappyHourTeaDiscount(double teaBaseTotal) {
-        // 20% off TEA drinks during 2-4 PM local time (excludes add-ons)
-        LocalTime now = LocalTime.now();
-        if (!now.isBefore(HAPPY_HOUR_START) && now.isBefore(HAPPY_HOUR_END)) {
-            return teaBaseTotal * 0.20;
-        }
-        return 0.0;
-    }
-
     private void checkoutAndSaveReceipt(Scanner scanner) {
         // Compute totals
         double baseTotal = 0.0;   // drinks only (for promos)
         double addonsTotal = 0.0; // add-ons only
-        double teaBaseTotal = 0.0;
 
         for (CartItem ci : cart) {
             baseTotal += ci.basePrice();
             addonsTotal += ci.addonsCost();
-            if (ci.drink.getType_name() != null && ci.drink.getType_name().equalsIgnoreCase("Tea")) {
-                teaBaseTotal += ci.basePrice();
-            }
         }
 
-        double bulkDisc = calculateBulkDiscount(cart.size(), baseTotal);
-        double hhDisc   = calculateHappyHourTeaDiscount(teaBaseTotal);
-
-        // Choose best promo
-        double appliedDisc = Math.max(bulkDisc, hhDisc);
-        String promoLabel  = appliedDisc == 0.0 ? "None"
-                : (appliedDisc == bulkDisc ? "Bulk Order 10% (drinks only)"
-                                           : "Happy Hour: Tea 20% (drinks only, 2–4 PM)");
+        // Use PromotionManager to select best promotion
+        Promotion bestPromotion = promotionManager.selectBestPromotion(cart, baseTotal, addonsTotal);
+        double appliedDisc = 0.0;
+        String promoLabel = "None";
+        
+        if (bestPromotion != null) {
+            appliedDisc = bestPromotion.calculateDiscount(cart, baseTotal, addonsTotal);
+            promoLabel = bestPromotion.getPromotionName();
+        }
 
         double subtotal = baseTotal + addonsTotal;
-        double finalTotal = subtotal - appliedDisc;
+        double finalTotalBeforeTax = subtotal - appliedDisc;
+        double tax = finalTotalBeforeTax * TAX_RATE;
+        double finalTotal = finalTotalBeforeTax + tax;
 
-        // Update global sales + counts
-        totalSales += finalTotal;
-        for (CartItem ci : cart) {
-            itemCountByName.merge(ci.drink.getName(), 1, Integer::sum);
-        }
+        // Create Order object
+        Order order = new Order(new ArrayList<>(cart), baseTotal, addonsTotal, 
+            appliedDisc, promoLabel, finalTotalBeforeTax, tax, finalTotal);
+        completedOrders.add(order);
+        
+        // Record order in statistics
+        statistics.recordOrder(order);
 
         // Print checkout summary
         System.out.println("\n===== CHECKOUT =====");
         for (CartItem ci : cart) {
-            System.out.printf("- %s (%s)  base $%.2f  | add-ons [%s] $%.2f%n",
-                    ci.drink.getName(), ci.drink.getSize(),
-                    ci.basePrice(), ci.addonsLabel(), ci.addonsCost());
+            System.out.printf("- %s  base $%.2f  | add-ons [%s] $%.2f%n",
+                ci.getDisplayString(), ci.basePrice(), ci.addonsLabel(), ci.addonsCost());
         }
         System.out.printf("Drinks total:     $%.2f%n", baseTotal);
         System.out.printf("Add-ons total:    $%.2f%n", addonsTotal);
         System.out.printf("Promotion:  %s  (-$%.2f)%n", promoLabel, appliedDisc);
+        System.out.printf("Subtotal:         $%.2f%n", finalTotalBeforeTax);
+        System.out.printf("Tax (8.25%%):      $%.2f%n", tax);
         System.out.printf("Amount due:       $%.2f%n", finalTotal);
         System.out.println("====================\n");
 
@@ -262,32 +265,42 @@ public class StarbucksSalesTracker {
         System.out.print("Save receipt? (Y/N): ");
         String save = scanner.nextLine().trim();
         if (save.equalsIgnoreCase("Y")) {
-            saveReceipt(cart, baseTotal, addonsTotal, appliedDisc, promoLabel, finalTotal);
+            saveReceipt(order);
         }
 
         cart.clear();
     }
 
-    private void saveReceipt(List<CartItem> items, double baseTotal, double addonsTotal,
-                             double appliedDisc, String promoLabel, double finalTotal) {
-        String fileName = "receipt.txt";
-        DateTimeFormatter tf = DateTimeFormatter.ofPattern("HH:mm:ss");
+    private void saveReceipt(Order order) {
+        // Create timestamped filename
+        LocalDateTime now = LocalDateTime.now();
+        DateTimeFormatter fileFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm");
+        String fileName = "receipt_" + now.format(fileFormatter) + ".txt";
+        
+        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        
         StringBuilder sb = new StringBuilder();
         sb.append("==== Starbucks Receipt ====\n");
-        sb.append("Date: ").append(LocalDate.now()).append("  Time: ").append(LocalTime.now().format(tf)).append("\n\n");
-        for (CartItem ci : items) {
-            sb.append(String.format("%-28s (%-6s)  base $%5.2f  add-ons [%s] $%4.2f%n",
-                    ci.drink.getName(), ci.drink.getSize(), ci.basePrice(), ci.addonsLabel(), ci.addonsCost()));
+        sb.append("Date: ").append(now.format(dateFormatter))
+          .append("  Time: ").append(now.format(timeFormatter)).append("\n\n");
+        
+        for (CartItem ci : order.getItems()) {
+            sb.append(String.format("%-28s  base $%5.2f  add-ons [%s] $%4.2f%n",
+                ci.getDisplayString(), ci.basePrice(), ci.addonsLabel(), ci.addonsCost()));
         }
-        sb.append(String.format("\nDrinks total:     $%.2f%n", baseTotal));
-        sb.append(String.format("Add-ons total:    $%.2f%n", addonsTotal));
-        sb.append(String.format("Promotion:  %s  (-$%.2f)%n", promoLabel, appliedDisc));
-        sb.append(String.format("TOTAL DUE:        $%.2f%n", finalTotal));
-        sb.append("===========================\n\n");
+        
+        sb.append(String.format("\nDrinks total:     $%.2f%n", order.getBaseTotal()));
+        sb.append(String.format("Add-ons total:    $%.2f%n", order.getAddonsTotal()));
+        sb.append(String.format("Promotion:  %s  (-$%.2f)%n", order.getPromotionName(), order.getDiscount()));
+        sb.append(String.format("Subtotal:         $%.2f%n", order.getSubtotalBeforeTax()));
+        sb.append(String.format("Tax (8.25%%):      $%.2f%n", order.getTax()));
+        sb.append(String.format("TOTAL DUE:        $%.2f%n", order.getFinalTotal()));
+        sb.append("===========================\n");
 
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName, true))) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName))) {
             writer.write(sb.toString());
-            System.out.println("Receipt appended to " + fileName);
+            System.out.println("Receipt saved to " + fileName);
         } catch (IOException e) {
             System.err.println("Error writing receipt: " + e.getMessage());
         }
@@ -296,38 +309,69 @@ public class StarbucksSalesTracker {
     // ======= Reporting =======
     private void printSalesSummary() {
         System.out.println("\n=== Today's Sales Summary ===");
-        System.out.printf("Total Sales: $%.2f%n", totalSales);
+        System.out.printf("Total Drinks Sold: %d%n", statistics.getTotalDrinksSold());
+        System.out.printf("Total Revenue: $%.2f%n", statistics.getTotalRevenue());
 
-        if (itemCountByName.isEmpty()) {
+        if (statistics.getTotalDrinksSold() == 0) {
             System.out.println("No drinks sold yet.");
             return;
         }
 
-        String mostPopularName = null;
-        int maxCount = 0;
-        for (Map.Entry<String, Integer> e : itemCountByName.entrySet()) {
-            if (e.getValue() > maxCount) {
-                maxCount = e.getValue();
-                mostPopularName = e.getKey();
-            }
+        // Most popular drink (by name + size)
+        String mostPopular = statistics.getMostPopularDrink();
+        if (mostPopular != null) {
+            int count = statistics.getMostPopularDrinkCount();
+            System.out.printf("Most Popular Drink: %s (%d sold)%n", mostPopular, count);
         }
-        System.out.printf("Most Popular Drink: %s (%d sold)%n", mostPopularName, maxCount);
 
-        // Drinks not sold yet (by name, ignoring size)
-        Set<String> soldNames = new HashSet<>(itemCountByName.keySet());
-        Set<String> notSold = new LinkedHashSet<>();
-        for (Type t : menu) {
-            if (t.getName() != null && !soldNames.contains(t.getName())) {
-                notSold.add(t.getName());
+        // Unique drink types sold today
+        Set<String> uniqueTypes = statistics.getUniqueDrinkTypesSold();
+        if (!uniqueTypes.isEmpty()) {
+            System.out.println("Unique Drink Types Sold: " + String.join(", ", uniqueTypes));
+        }
+
+        // Drinks not sold today
+        Set<String> unsold = statistics.getUnsoldDrinks(menu);
+        if (!unsold.isEmpty()) {
+            System.out.println("Drinks Not Sold Today: " + String.join(", ", unsold));
+        }
+
+        // Top 3 add-ons
+        List<String> top3Addons = statistics.getTop3Addons();
+        if (!top3Addons.isEmpty()) {
+            System.out.println("\nTop 3 Add-ons (by count):");
+            Map<String, Integer> addonCounts = statistics.getAddonCount();
+            for (String addon : top3Addons) {
+                System.out.printf("  - %s: %d%n", addon, addonCounts.get(addon));
             }
         }
-        if (!notSold.isEmpty()) {
-            System.out.println("Drinks not sold yet: " + String.join(", ", notSold));
+
+        // Add-on revenue
+        double addonRevenue = statistics.getTotalAddonRevenue();
+        System.out.printf("Total Add-on Revenue: $%.2f%n", addonRevenue);
+
+        // Promotion impact
+        System.out.printf("Total Discount Given: $%.2f%n", statistics.getTotalDiscountGiven());
+        System.out.printf("Orders with Promotions: %d%n", statistics.getOrdersWithPromotions());
+
+        // Per-category breakdown
+        Map<String, Integer> categoryCounts = statistics.getCategoryItemCount();
+        Map<String, Double> categoryRevenues = statistics.getCategoryRevenue();
+        if (!categoryCounts.isEmpty()) {
+            System.out.println("\nPer-Category Breakdown:");
+            for (String category : categoryCounts.keySet()) {
+                System.out.printf("  - %s: %d items, $%.2f revenue%n", 
+                    category, categoryCounts.get(category), 
+                    categoryRevenues.getOrDefault(category, 0.0));
+            }
         }
     }
 
     // ======= CSV =======
     public void loadMenuFromCsv(String filePath) {
+        menu.clear();
+        Set<String> seen = new HashSet<>(); // To handle duplicates
+        
         try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
             String header = br.readLine();
             if (header == null) return;
@@ -351,27 +395,56 @@ public class StarbucksSalesTracker {
             }
 
             String line;
+            int lineNumber = 1;
             while ((line = br.readLine()) != null) {
+                lineNumber++;
                 if (line.isBlank()) continue;
                 String[] f = line.split(",", -1);
-                if (f.length <= Math.max(Math.max(iName, iType), Math.max(iSize, iPrice))) continue;
+                if (f.length <= Math.max(Math.max(iName, iType), Math.max(iSize, iPrice))) {
+                    System.err.println("Skipping row " + lineNumber + " with missing fields: " + line);
+                    continue;
+                }
 
                 String name = f[iName].trim();
                 String typeName = f[iType].trim();
                 String size = f[iSize].trim();
 
+                // Skip if missing required fields
+                if (name.isEmpty() || typeName.isEmpty() || size.isEmpty()) {
+                    System.err.println("Skipping row " + lineNumber + " with empty fields: " + line);
+                    continue;
+                }
+
                 double price;
                 try {
                     price = Double.parseDouble(f[iPrice].trim());
                 } catch (NumberFormatException nfe) {
-                    System.err.println("Skipping row with bad price: " + line);
+                    System.err.println("Skipping row " + lineNumber + " with bad price: " + line);
                     continue;
                 }
 
-                // Type(name, size, price, compute_price, type_name)
-                Type t = new Type(name, size, price, price, typeName);
-                menu.add(t);
+                // Use DrinkFactory to create appropriate drink
+                Drink drink = DrinkFactory.createDrink(name, size, price, typeName);
+                if (drink == null) {
+                    System.err.println("Skipping row " + lineNumber + " with unknown type: " + typeName);
+                    continue;
+                }
+
+                // Check for duplicates (same name + size)
+                String key = name + "|" + size;
+                if (!seen.contains(key)) {
+                    seen.add(key);
+                    menu.add(drink);
+                }
             }
+            
+            // Update BuyNGetMPromotion with menu
+            List<Promotion> promotions = new ArrayList<>();
+            promotions.add(new BulkOrderPromotion());
+            promotions.add(new HappyHourPromotion());
+            promotions.add(new BuyNGetMPromotion(menu));
+            this.promotionManager = new PromotionManager(promotions);
+            
             System.out.println("Loaded " + menu.size() + " menu items from " + filePath);
         } catch (IOException e) {
             System.err.println("Error reading CSV file: " + e.getMessage());
